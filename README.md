@@ -1,1 +1,1 @@
-# project-boilerplate-generater
+# project-boilerplate-generator
