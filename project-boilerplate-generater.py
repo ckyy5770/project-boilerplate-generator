@@ -4,7 +4,7 @@
 
 import argparse
 from pathlib import Path
-import sys, datetime, os
+import sys, datetime, os, subprocess
 
 # template library path
 LIB_PATH = Path.cwd() / 'templates'
@@ -16,6 +16,7 @@ def parse_args():
     parser.add_argument('path', help='the desired root path of your new project')
     parser.add_argument('lang', help='the programming language you will use in this project')
     parser.add_argument('license', help='license of your project')
+    parser.add_argument('repo', help='github repo of this project')
 
     return parser.parse_args()
 
@@ -39,7 +40,7 @@ def make_path_obj(args):
 
     return p
 
-def make_dirs(p_root):
+def make_dirs(p_root, args):
     p_root.mkdir()
     (p_root / 'src').mkdir()
     (p_root / 'test').mkdir()
@@ -50,30 +51,68 @@ def init_files(p_root, args):
     init_license(p_root, args)
 
     if args.lang == 'cc':
-        pass
+        init_hello_world(p_root, args)
+        init_cmake(p_root, args)
+        init_gitignore_cc(p_root, args)
     else:
         sys.exit('unsupported programming language.')
 
+# sync this project with your github repo
+def sync_project(p_root, args):
+    subprocess.run(args=['git', 'init'], cwd=p_root)
+
+    subprocess.run(args=['git', 'add', '.gitignore'], cwd=p_root)
+    subprocess.run(args=['git', 'commit', '-m', 'update gitignore'], cwd=p_root)
+
+    subprocess.run(args=['git', 'add', 'README.md'], cwd=p_root)
+    subprocess.run(args=['git', 'commit', '-m', 'update README.md'], cwd=p_root)
+
+    subprocess.run(args=['git', 'add', 'LICENSE'], cwd=p_root)
+    subprocess.run(args=['git', 'commit', '-m', 'update LICENSE'], cwd=p_root)
+
+    subprocess.run(args=['git', 'add', '--all'], cwd=p_root)
+    subprocess.run(args=['git', 'commit', '-m', 'init project'], cwd=p_root)
+
+    subprocess.run(args=['git', 'remote', 'add', 'origin', args.repo], cwd=p_root)
+    subprocess.run(args=['git', 'push', '-u', 'origin', 'master'], cwd=p_root)
+
+############ file creators ################
 def init_readme(p_root, args):
-    template = ''
-    with (LIB_PATH / 'readme' / 'standard').open(mode='r') as rf:
-        template = rf.read()
-    with (p_root / 'README.MD').open(mode='w') as wf:
-        wf.write(template.format(project_name=args.name))
+    template = read_from(LIB_PATH / 'readme' / 'standard')
+    write_to(p_root / 'README.md', template.format(project_name=args.name))
 
 def init_license(p_root, args):
-    template = ''
-    with (LIB_PATH / 'license' / 'MIT').open(mode='r') as rf:
-        template = rf.read()
-    with (p_root / 'LICENSE').open(mode='w') as wf:
-        wf.write(template.format(year=datetime.datetime.now().year, author=args.author))
+    template = read_from(LIB_PATH / 'license' / 'MIT')
+    write_to(p_root / 'LICENSE', template.format(year=datetime.datetime.now().year, author=args.author))
+
+def init_hello_world(p_root, args):
+    template = read_from(LIB_PATH / 'cc' / 'hello_world.cc')
+    write_to(p_root / 'test' / 'hello_world.cc', template)
+
+def init_cmake(p_root, args):
+    template = read_from(LIB_PATH / 'cc' / 'CMakeLists')
+    write_to(p_root / 'CMakeLists.txt', template.format(project_name=args.name))
+
+def init_gitignore_cc(p_root, args):
+    template = read_from(LIB_PATH / 'cc' / 'gitignore')
+    write_to(p_root / '.gitignore', template)
+
+def read_from(path):
+    with path.open(mode='r') as f:
+        return f.read()
+
+def write_to(path, data):
+    with path.open(mode='w') as f:
+        f.write(data)
+
 
 def main():
     args = parse_args()
     args_check(args)
     p_root = make_path_obj(args)
-    make_dirs(p_root)
+    make_dirs(p_root, args)
     init_files(p_root, args)
+    sync_project(p_root, args)
 
 if __name__ == "__main__":
     main()
